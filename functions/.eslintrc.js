@@ -11,7 +11,5 @@ module.exports = {
   rules: {
     quotes: ["error", "double"],
   },
-  parser: [
-    "babel-eslint",
-  ],
-};
+  parser: "babel-eslint",
+  };
