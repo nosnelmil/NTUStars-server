@@ -16,12 +16,30 @@ module.exports.generateScheduleCombinations = function (formattedData) {
         helper(result, i + 1);
       } else {
         combinationResults.push({
-          id: `${result[0].index + result[1].index + result[2].index}`,
-          data: result
+          id: createId(result, courseCodeKeysLength),
+          data: result,
+          freeDays: combineFreeDays(result, courseCodeKeysLength)
         });
       }
     }
   }
   helper([], 0);
   return combinationResults
+}
+
+function createId(result, courseCodeKeysLength){
+  var id =''
+  for(var i=0; i<courseCodeKeysLength; i++){
+    id += result[i].index
+  }
+  return id
+}
+
+function combineFreeDays(result, courseCodeKeysLength){
+  var freeDays = [...result[0].freeDays]
+  for(var i=1; i< courseCodeKeysLength; i++){
+    const currentFreeDays = result[i].freeDays
+    freeDays = freeDays.filter(val => currentFreeDays.includes(val))
+  }
+  return freeDays
 }

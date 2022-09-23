@@ -45,6 +45,7 @@ app.post('/generate-timetables', async (req, res) => {
       res.status(200).end()
     }
   }catch(e){
+    console.log("ERROR", e)
     res.status(500).end()
   }
 })
