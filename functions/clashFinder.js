@@ -1,47 +1,54 @@
 // takes in an array to find if there is any clash
-module.exports.clashFinder = function (combination) {
-  // comparison priority: 
+module.exports.clashFinder = function(combination) {
+  // comparison priority:
   // day
   // time
   // week
-  var clashes = []
+  let clashes = [];
   // check day
-  for (var i = 0; i < combination.length - 1; i++) {
-    var current = combination[i]
-    for (var j = i + 1; j < combination.length; j++) {
-      var comparisonTarget = combination[j]
-      var daysClashed = Array1DClashFinder(current.day, comparisonTarget.day)
+  for (let i = 0; i < combination.length - 1; i++) {
+    const current = combination[i];
+    for (let j = i + 1; j < combination.length; j++) {
+      const comparisonTarget = combination[j];
+      const daysClashed = array1DClashFinder(current.day, comparisonTarget.day);
 
-      if (!!daysClashed.length) {
-        var timingAndDayClashed = daysClashed.filter(pair => Array1DClashFinder(current.time[pair[0]], comparisonTarget.time[pair[1]], false))
+      if (daysClashed.length) {
+        const timingAndDayClashed = daysClashed.filter((pair) =>
+          array1DClashFinder(current.time[pair[0]],
+              comparisonTarget.time[pair[1]], false));
 
-        if (!!timingAndDayClashed.length) {
-          var fullyClashed = timingAndDayClashed.filter(pair => Array1DClashFinder(current.remarks[pair[0]], comparisonTarget.remarks[pair[1]], false))
-          clashes = clashes.concat(fullyClashed)
-          return true
+        if (timingAndDayClashed.length) {
+          const fullyClashed = timingAndDayClashed.filter((pair) =>
+            array1DClashFinder(current.remarks[pair[0]],
+                comparisonTarget.remarks[pair[1]], false));
+          clashes = clashes.concat(fullyClashed);
+          return true;
         }
       }
     }
   }
-  return false
-}
+  return false;
+};
 // returns array of index pairs which clash
-function Array1DClashFinder (arr1, arr2, fullSearch = true) {
-  var obj = {}
-  var clashes = []
-  arr1.forEach((element, index) => obj[element] ? obj[element] = [...obj[element], index] : obj[element] = [index])
-  for (var i = 0; i < arr2.length; i++) {
-    var element = arr2[i]
+function array1DClashFinder(arr1, arr2, fullSearch = true) {
+  const obj = {};
+  const clashes = [];
+  arr1.forEach((element, index) =>
+    obj[element] ?
+    obj[element] = [...obj[element], index] :
+    obj[element] = [index]);
+  for (let i = 0; i < arr2.length; i++) {
+    const element = arr2[i];
     if (obj[element]) {
       if (fullSearch) {
         // add clashed pair
-        obj[element].forEach(clash => {
-          clashes.push([clash, i])
-        })
+        obj[element].forEach((clash) => {
+          clashes.push([clash, i]);
+        });
       } else {
-        return true
+        return true;
       }
     }
   }
-  return fullSearch ? clashes : false
+  return fullSearch ? clashes : false;
 }

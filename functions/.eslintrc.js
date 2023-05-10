@@ -9,7 +9,12 @@ module.exports = {
     "google",
   ],
   rules: {
-    quotes: ["error", "double"],
+    "quotes": ["error", "double"],
+    "linebreak-style": 0,
+    "global-require": 0,
+    "eslint linebreak-style": [0, "error", "windows"],
+    "require-jsdoc": 0,
+    "max-len": ["error", {"code": 120}],
   },
   parser: "babel-eslint",
-  };
+};
