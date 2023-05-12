@@ -86,9 +86,7 @@ app.post("/get-schedule", async (req, res) => {
       // Get from database --> if not in database then scrape it
       const docRef = db.collection(semester).doc(courseCode);
       const doc = await docRef.get();
-      const test = true;
-      // if (!doc.exists) {
-      if (test) {
+      if (!doc.exists) {
         const rawScheduleData = await scheduleScraper(semester, courseCode);
         if (!rawScheduleData || rawScheduleData.length == 0) {
           res.status(400).end();
