@@ -1,13 +1,10 @@
 const functions = require("firebase-functions");
-const {log, error} = require("firebase-functions/logger");
+const {log, error, warn} = require("firebase-functions/logger");
 const {initializeApp} = require("firebase-admin/app");
 const {getFirestore, FieldValue} = require("firebase-admin/firestore");
 const express = require("express");
 const {scheduleScraper} = require("./ntuScheduleScraper");
 const {formatData} = require("./scheduleFormatter");
-const {clashFinder} = require("./clashFinder");
-const {generateScheduleCombinations} = require("./scheduleCombinator");
-const {checkRawData} = require("./checkRawData");
 const {semScraper} = require("./ntuSemScraper");
 const {calcDateDiff} = require("./helper/calcDateDiff");
 const cors = require("cors")({origin: "https://ntu-schedule-maker.firebaseapp.com"});
@@ -29,7 +26,7 @@ app.use(cors);
 //  //... (all course code)
 // ...
 
-app.get("/get-semesters", async (req, res) => {
+app.post("/get-semesters", async (req, res) => {
   cors(req, res, async () => {
     try {
       const docRef = db.collection("semestersInfo").doc("data");
@@ -51,7 +48,7 @@ app.get("/get-semesters", async (req, res) => {
       res.json({
         semesters,
         success: true,
-        errorInfo: "",
+        message: "",
       });
       res.status(200).end();
       if (toUpdate) {
@@ -67,50 +64,101 @@ app.get("/get-semesters", async (req, res) => {
       error(e);
       res.json({
         success: false,
-        errorInfo: e,
+        message: e,
       });
       res.status(500).end();
     }
   });
 });
 
-app.post("/generate-timetables", async (req, res) => {
+app.post("/get-schedule", async (req, res) => {
   cors(req, res, async ()=>{
     try {
-      const courseCodes = req.body;
+      const data = req.body;
+      log(data);
+      if (!("courseCode" in data) || !("semester" in data)) {
+        res.status(400).end();
+        warn("User bad request for get-schedule");
+        return;
+      }
+      const semester = data.semester;
+      const courseCode = data.courseCode;
       // Get from database --> if not in database then scrape it
-      const rawScheduleData = await scheduleScraper(courseCodes);
-      const error = checkRawData(rawScheduleData); // Check if any invalid course code was passed in
-      // functions.logger.log("rawScheduleData", rawScheduleData);
-      if (error) {
-        res.json({
-          success: false,
-          errorCode: 0,
-          errorInfo: error,
-          timetables: [],
-        });
-        res.status(200).end();
-      } else {
-        const formattedData = formatData(rawScheduleData);
-
-        const scheduleCombinations = generateScheduleCombinations(formattedData);
-        log.log("scheduleCombinations", scheduleCombinations.length);
-
-        const allPossibleTimetables = scheduleCombinations.filter((combination) => !clashFinder(combination.data));
-        log.log("allPossibleTimetables", allPossibleTimetables.length);
-
+      const docRef = db.collection(semester).doc(courseCode);
+      const doc = await docRef.get();
+      const test = true;
+      // if (!doc.exists) {
+      if (test) {
+        const rawScheduleData = await scheduleScraper(semester, courseCode);
+        if (!rawScheduleData || rawScheduleData.length == 0) {
+          res.status(400).end();
+          return;
+        }
+        const formattedSchedule = formatData(rawScheduleData);
+        log(formattedSchedule);
         res.json({
           success: true,
-          timetables: allPossibleTimetables,
-          totalCombinations: scheduleCombinations.length,
-          successfulCombinations: allPossibleTimetables.length,
+          schedule: formattedSchedule,
+        });
+        res.status(200).end();
+        // Update database
+        log(`Uploading Sem ${semester} - Course ${courseCode} to db`);
+        await docRef.set({
+          schedule: formattedSchedule,
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+        log("Uploaded");
+      } else {
+        res.json({
+          success: true,
+          schedule: doc.data().schedule,
         });
         res.status(200).end();
       }
     } catch (e) {
-      console.log("ERROR", e);
+      error("/get-schedule error", e);
       res.status(500).end();
     }
+  });
+});
+
+app.get("/get-time-dict", async (req, res) => {
+  const timeDict = {
+    "0800": 0,
+    "0830": 1,
+    "0900": 2,
+    "0930": 3,
+    "1000": 4,
+    "1030": 5,
+    "1100": 6,
+    "1130": 7,
+    "1200": 8,
+    "1230": 9,
+    "1300": 10,
+    "1330": 11,
+    "1400": 12,
+    "1430": 13,
+    "1500": 14,
+    "1530": 15,
+    "1600": 16,
+    "1630": 17,
+    "1700": 18,
+    "1730": 19,
+    "1800": 20,
+    "1830": 21,
+    "1900": 22,
+    "1930": 23,
+    "2000": 24,
+    "2030": 25,
+    "2100": 26,
+    "2130": 27,
+    "2200": 28,
+    "2230": 29,
+    "2300": 30,
+    "2330": 31,
+  };
+  res.json({
+    timeDict,
   });
 });
 

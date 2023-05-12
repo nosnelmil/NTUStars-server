@@ -1,36 +1,47 @@
 module.exports.formatData = function(rawScheduleData) {
+  // schedule schema
+  // schedule
+  // // {index}
+  // // // 0
+  // // // // type = String
+  // // // // group = String
+  // // // // day = String
+  // // // // time = Array
+  // // // // venue = String
+  // // // // weeks = Array
+  // // // 1
+  // ...
   const formattedSchedule = {};
-  for (const courseCode of rawScheduleData.keys()) {
-    formattedSchedule[courseCode] = {};
-    let currentIndex;
-    rawScheduleData[courseCode].forEach((row) => {
-      // Check if have index
-      if (row[0]) { // There is an index
-        currentIndex = row[0];
-        // initial free days
-        const initialFreeDays = ["MON", "TUE", "WED", "THU", "FRI", "SAT"];
-        // create new entry for coursecode
-        formattedSchedule[courseCode][currentIndex] = {
-          type: [row[1]],
-          group: [row[2]],
-          day: [row[3]],
-          time: [timeToIndexedTime(row[4])],
-          venue: [row[5]],
-          remarks: [remarksToWeekNums(row[6])],
-          freeDays: [...updateFreeDays(initialFreeDays, row[3])],
-        };
-      } else { // no index
-        formattedSchedule[courseCode][currentIndex].type.push(row[1]);
-        formattedSchedule[courseCode][currentIndex].group.push(row[2]);
-        formattedSchedule[courseCode][currentIndex].day.push(row[3]);
-        formattedSchedule[courseCode][currentIndex].time.push(timeToIndexedTime(row[4]));
-        formattedSchedule[courseCode][currentIndex].venue.push(row[5]);
-        formattedSchedule[courseCode][currentIndex].remarks.push(remarksToWeekNums(row[6]));
-        const currentFreedays = formattedSchedule[courseCode][currentIndex].freeDays;
-        formattedSchedule[courseCode][currentIndex].freeDays = [...updateFreeDays(currentFreedays, row[3])];
-      }
-    });
+  let currentIndex;
+  let classNum=0;
+  for ( const row of rawScheduleData) {
+    // Check if have index
+    if (row[0]) { // There is an index
+      currentIndex = row[0];
+      classNum = 0;
+      // create new entry for coursecode
+      formattedSchedule[currentIndex] = {};
+      formattedSchedule[currentIndex][classNum] = {
+        type: row[1],
+        group: row[2],
+        day: row[3],
+        time: timeToIndexedTime(row[4]),
+        venue: row[5],
+        weeks: remarksToWeekNums(row[6]),
+      };
+    } else { // no index --> this row falls under the previously set currentIndex
+      classNum++;
+      formattedSchedule[currentIndex][classNum] = {
+        type: row[1],
+        group: row[2],
+        day: row[3],
+        time: timeToIndexedTime(row[4]),
+        venue: row[5],
+        weeks: remarksToWeekNums(row[6]),
+      };
+    }
   }
+
   return formattedSchedule;
 };
 
@@ -82,13 +93,11 @@ function timeToIndexedTime(rawTime) {
   const timeArray = rawTime.split("-");
   const startIndex = timeDict[timeArray[0]];
   // change the 3rd digit of time to 3 if its 2 eg. 1720 to 1730
-  console.log("test", timeArray);
   if (timeArray[1][2] == "2") {
     timeArray[1] = timeArray[1].slice(0, 2).concat("30");
   } else if (timeArray[1][2] == "5") {
     const increasedHour = parseInt(timeArray[1].slice(1, 2)) + 1;
     timeArray[1] = timeArray[1].slice(0, 1).concat(`${increasedHour}00`);
-    console.log("test", timeArray[1]);
   }
 
   const EndIndex = timeDict[timeArray[1]] - 1; // it ends at the previous time index hence minus 1
@@ -162,16 +171,4 @@ function remarksToWeekNums(rawRemark) {
   } else {
     return [...Array(13).keys()].map((value) => value + 1);
   }
-}
-
-function updateFreeDays(freeDays, notFreeDay) {
-  if (notFreeDay.length === 0) {
-    return freeDays;
-  }
-  const result = [...freeDays];
-  const indexOfNotFreeDay = freeDays.findIndex((freeday) => freeday === notFreeDay);
-  if (indexOfNotFreeDay != -1) {
-    result.splice(indexOfNotFreeDay, 1);
-  }
-  return result;
 }

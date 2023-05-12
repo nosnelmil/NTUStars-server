@@ -3,7 +3,7 @@ const functions = require("firebase-functions");
 
 const url = "https://wish.wis.ntu.edu.sg/webexe/owa/aus_schedule.main";
 
-module.exports.scheduleScraper = async function(CourseCodes) {
+module.exports.scheduleScraper = async function(semester, courseCode) {
   try {
     // start puppeteer
     const browser = await puppeteer.launch({
@@ -11,7 +11,7 @@ module.exports.scheduleScraper = async function(CourseCodes) {
       args: ["--no-sandbox"],
     });
     let page = await browser.newPage();
-    const data = {};
+    let schedule = [];
     let pageList = await browser.pages();
     for (let i = 1; i < pageList.length; i++) {
       await pageList[i].close();
@@ -19,28 +19,30 @@ module.exports.scheduleScraper = async function(CourseCodes) {
     pageList = [pageList[0]];
     page = pageList[0];
     await page.goto(url);
-    for (const courseCode of CourseCodes) {
-      // const courseCode = "HA4040"
+    //  Select semester
+    await page.waitForSelector(`select[name="acadsem"] > option[value= "${semester}"`);
+    await page.select("select[name=\"acadsem\"]", semester);
 
-      await page.waitForSelector("input[name=\"r_subj_code\"]");
-      await page.$eval("input[name=\"r_subj_code\"]", (el, value) => el.value = value, courseCode);
+    //  Input course code
+    await page.waitForSelector("input[name=\"r_subj_code\"]");
+    await page.$eval("input[name=\"r_subj_code\"]", (el, value) => el.value = value, courseCode);
 
-      await page.waitForSelector("input[name=\"r_subj_code\"]:nth-child(1) ~ input[type = \"button\"]");
-      await page.click("input[name=\"r_subj_code\"]:nth-child(1) ~ input[type = \"button\"]");
+    //  Click search button
+    await page.waitForSelector("input[name=\"r_subj_code\"]:nth-child(1) ~ input[type = \"button\"]");
+    await page.click("input[name=\"r_subj_code\"]:nth-child(1) ~ input[type = \"button\"]");
 
-      const newTarget = await browser.waitForTarget((target) => target.opener() === page.target());
-      const schedulePage = await newTarget.page();
-      if (schedulePage) {
-        // scrape course schedule data
-        const result = await extractScheduleData(schedulePage);
-        data[courseCode] = result;
-        await schedulePage.close();
-      } else {
-        functions.logger.log("Course Schedule Tab not detected");
-      }
+    const newTarget = await browser.waitForTarget((target) => target.opener() === page.target());
+    const schedulePage = await newTarget.page();
+    if (schedulePage) {
+      // scrape course schedule data
+      schedule = await extractScheduleData(schedulePage);
+      await schedulePage.close();
+    } else {
+      functions.logger.log("Course Schedule Tab not detected");
     }
+
     browser.close();
-    return data;
+    return schedule;
   } catch (e) {
     return 0;
   }
