@@ -1,7 +1,7 @@
 const functions = require("firebase-functions");
-const {log, error, warn} = require("firebase-functions/logger");
+const {log, error} = require("firebase-functions/logger");
 const {initializeApp} = require("firebase-admin/app");
-const {getFirestore} = require("firebase-admin/firestore");
+const {getFirestore, FieldValue} = require("firebase-admin/firestore");
 const express = require("express");
 const {scheduleScraper} = require("./ntuScheduleScraper");
 const {formatData} = require("./scheduleFormatter");
@@ -9,6 +9,7 @@ const {clashFinder} = require("./clashFinder");
 const {generateScheduleCombinations} = require("./scheduleCombinator");
 const {checkRawData} = require("./checkRawData");
 const {semScraper} = require("./ntuSemScraper");
+const {calcDateDiff} = require("./helper/calcDateDiff");
 const cors = require("cors")({origin: "https://ntu-schedule-maker.firebaseapp.com"});
 // const cors = require("cors")({origin: true});
 initializeApp();
@@ -19,7 +20,7 @@ app.use(cors);
 
 // Database schema
 // semestersInfo
-//  //  data --> name: {2014;T: 2014 semester 1 , ...}, lastUpdated: DateTime
+//  //  data --> names: {2014;T: 2014 semester 1 , ...}, updatedAt: DateTime
 // 2014;T
 //  // coursecode
 //  //... (all course code)
@@ -31,30 +32,43 @@ app.use(cors);
 app.get("/get-semesters", async (req, res) => {
   cors(req, res, async () => {
     try {
-      log("entered");
       const docRef = db.collection("semestersInfo").doc("data");
       const doc = await docRef.get();
+      let toUpdate = false;
       let semesters = {};
-      if (!doc.exists) {
-        // No Such document --> scrape to get document
+      if (!doc.exists || calcDateDiff(doc.data().updatedAt.toDate(), new Date()) >= 1 ) {
+        // No Such document / needs to be updated --> scrape to get document
         semesters = await semScraper();
-        log(semesters);
-        if (semesters.keys().length == 0) {
-          warn("SemScraper returned empty object");
+        if (Object.keys(semesters).length == 0) {
+          error("SemScraper returned empty object");
+          throw new Error("Error Scraping Semesters");
         }
+        toUpdate=true;
+        // return semesters then store it
       } else {
-        // TODO: check last updated
-        if (new Date((new Date() - doc.data().lastUpdated)).getDay > 1) {
-          // update database
-          semesters = await semScraper();
-          if (semesters.key().length == 0) {
-            log("SemScraper returned empty object");
-          }
-        }
+        semesters = doc.data().names;
       }
+      res.json({
+        semesters,
+        success: true,
+        errorInfo: "",
+      });
+      res.status(200).end();
+      if (toUpdate) {
+        log("Updating semestersInfo");
+        await docRef.set({
+          names: semesters,
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+        log("Updated SemestersInfo");
+      }
+      // Store semestersInfo
     } catch (e) {
       error(e);
-    } finally {
+      res.json({
+        success: false,
+        errorInfo: e,
+      });
       res.status(500).end();
     }
   });
