@@ -75,15 +75,13 @@ app.get("/get-schedule", async (req, res) => {
   cors(req, res, async ()=>{
     try {
       const data = req.body;
-      log(typeof data);
-      log(data);
       if (!("courseCode" in data) || !("semester" in data)) {
         res.status(400).end();
         warn("User bad request for get-schedule");
         return;
       }
-      const semester = data.semester;
-      const courseCode = data.courseCode;
+      const semester = data.semester.toUpperCase();
+      const courseCode = data.courseCode.toUpperCase();
       // Get from database --> if not in database then scrape it
       const docRef = db.collection(semester).doc(courseCode);
       const doc = await docRef.get();
@@ -105,6 +103,7 @@ app.get("/get-schedule", async (req, res) => {
         log(`Uploading Sem ${semester} - Course ${courseCode} to db`);
         await docRef.set({
           name: courseName,
+          courseCode: courseCode,
           schedule: formattedSchedule,
           updatedAt: FieldValue.serverTimestamp(),
         });
