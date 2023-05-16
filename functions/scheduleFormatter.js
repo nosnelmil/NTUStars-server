@@ -1,3 +1,5 @@
+const {log} = require("firebase-functions/logger");
+
 module.exports.formatData = function(rawScheduleData) {
   // schedule schema
   // schedule
@@ -13,32 +15,29 @@ module.exports.formatData = function(rawScheduleData) {
   // ...
   const formattedSchedule = {};
   let currentIndex;
-  let classNum=0;
   for ( const row of rawScheduleData) {
     // Check if have index
     if (row[0]) { // There is an index
       currentIndex = row[0];
-      classNum = 0;
       // create new entry for coursecode
-      formattedSchedule[currentIndex] = {};
-      formattedSchedule[currentIndex][classNum] = {
+      formattedSchedule[currentIndex] = [];
+      formattedSchedule[currentIndex].push({
         type: row[1],
         group: row[2],
         day: row[3],
         time: timeToIndexedTime(row[4]),
         venue: row[5],
         weeks: remarksToWeekNums(row[6]),
-      };
+      });
     } else { // no index --> this row falls under the previously set currentIndex
-      classNum++;
-      formattedSchedule[currentIndex][classNum] = {
+      formattedSchedule[currentIndex].push({
         type: row[1],
         group: row[2],
         day: row[3],
         time: timeToIndexedTime(row[4]),
         venue: row[5],
         weeks: remarksToWeekNums(row[6]),
-      };
+      });
     }
   }
 
@@ -108,67 +107,25 @@ function timeToIndexedTime(rawTime) {
   return timeIndex;
 }
 
-/**
-* Converts remarks to week numbers
-* @param {String} rawRemark - any value in the remarks column
-* @return {Array}
-*/
 function remarksToWeekNums(rawRemark) {
-  let weeks = [];
-  const indexOfW = rawRemark.search("Wk");
-  // If remarks even contains Wk
-  if (indexOfW != -1) {
-    // shift index to first number
-    let currentIndex = indexOfW + 2;
-    // flag when index is more than length of remark
-    let outOfScope = false;
-    const maxLength = rawRemark.length;
-    // variables and flag for weeks if week format is a range
-    let currentWeekNum = 0;
-    let startWeekRange = 0;
-    let isRange = false;
+  if (!rawRemark) return [...Array(13).keys()].map((value) => value + 1);
+  const temp = rawRemark.trim().split(" ");
+  const weekString = temp[1];
+  const weekNums = weekString.slice(2);
 
-    while (!currentIndex >= maxLength || !outOfScope) {
-      const currentChar = rawRemark[currentIndex];
-      let nextChar;
-      if (currentIndex + 1 == maxLength) {
-        // some random char when there is no next char
-        nextChar = "x";
-        outOfScope = true;
-      } else {
-        nextChar = rawRemark[currentIndex + 1];
-      }
-      if (parseInt(currentChar) || parseInt(currentChar) == 0) { // 0 is a falsy
-        // next char is a num or not
-        if (parseInt(nextChar) || parseInt(nextChar) == 0) {
-          // shift current digit to tens place
-          currentWeekNum = parseInt(currentChar) * 10;
-          currentIndex++;
-          continue;
-        } else {
-          currentWeekNum += parseInt(currentChar);
-        }
-        // check if next char is - if not can add num to weeks array
-        if (nextChar == "-") {
-          isRange = true;
-          startWeekRange = currentWeekNum;
-          currentWeekNum = 0;
-        } else if (isRange) {
-          const arrayLength = currentWeekNum - startWeekRange + 1;
-          weeks = weeks.concat([...Array(arrayLength).keys()].map((value) => value + startWeekRange));
-          // reset flags and vars
-          isRange = false;
-          startWeekRange = 0;
-          currentWeekNum = 0;
-        } else {
-          weeks.push(currentWeekNum);
-          currentWeekNum = 0;
-        }
-      }
-      currentIndex++;
+  if (weekNums.includes("-")) {
+    let [beg, end] = weekNums.split("-");
+    beg = parseInt(beg);
+    end = parseInt(end);
+    return [...Array(end-beg+1).keys()].map((value) => value + beg);
+  } else if (weekNums.includes(",")) {
+    const weekNumsArr = weekNums.split(",");
+    const result = [];
+    for (let i =0; i<weekNumsArr.length; i++) {
+      result.push(parseInt(weekNumsArr[i]));
     }
-    return weeks;
-  } else {
-    return [...Array(13).keys()].map((value) => value + 1);
+    return result;
+  } else if (parseInt(weekNums)) {
+    return [parseInt(weekNums)];
   }
 }

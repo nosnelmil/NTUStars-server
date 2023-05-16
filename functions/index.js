@@ -26,7 +26,7 @@ app.use(cors);
 //  //... (all course code)
 // ...
 
-app.post("/get-semesters", async (req, res) => {
+app.get("/get-semesters", async (req, res) => {
   cors(req, res, async () => {
     try {
       const docRef = db.collection("semestersInfo").doc("data");
@@ -71,10 +71,11 @@ app.post("/get-semesters", async (req, res) => {
   });
 });
 
-app.post("/get-schedule", async (req, res) => {
+app.get("/get-schedule", async (req, res) => {
   cors(req, res, async ()=>{
     try {
       const data = req.body;
+      log(typeof data);
       log(data);
       if (!("courseCode" in data) || !("semester" in data)) {
         res.status(400).end();
@@ -87,7 +88,7 @@ app.post("/get-schedule", async (req, res) => {
       const docRef = db.collection(semester).doc(courseCode);
       const doc = await docRef.get();
       if (!doc.exists) {
-        const rawScheduleData = await scheduleScraper(semester, courseCode);
+        const [rawScheduleData, courseName] = await scheduleScraper(semester, courseCode);
         if (!rawScheduleData || rawScheduleData.length == 0) {
           res.status(400).end();
           return;
@@ -95,6 +96,7 @@ app.post("/get-schedule", async (req, res) => {
         const formattedSchedule = formatData(rawScheduleData);
         log(formattedSchedule);
         res.json({
+          name: courseName,
           success: true,
           schedule: formattedSchedule,
         });
@@ -102,12 +104,14 @@ app.post("/get-schedule", async (req, res) => {
         // Update database
         log(`Uploading Sem ${semester} - Course ${courseCode} to db`);
         await docRef.set({
+          name: courseName,
           schedule: formattedSchedule,
           updatedAt: FieldValue.serverTimestamp(),
         });
         log("Uploaded");
       } else {
         res.json({
+          name: doc.data().name,
           success: true,
           schedule: doc.data().schedule,
         });

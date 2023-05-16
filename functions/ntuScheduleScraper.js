@@ -12,6 +12,7 @@ module.exports.scheduleScraper = async function(semester, courseCode) {
     });
     let page = await browser.newPage();
     let schedule = [];
+    let courseName = "";
     let pageList = await browser.pages();
     for (let i = 1; i < pageList.length; i++) {
       await pageList[i].close();
@@ -34,6 +35,7 @@ module.exports.scheduleScraper = async function(semester, courseCode) {
     const newTarget = await browser.waitForTarget((target) => target.opener() === page.target());
     const schedulePage = await newTarget.page();
     if (schedulePage) {
+      courseName = await extractName(schedulePage);
       // scrape course schedule data
       schedule = await extractScheduleData(schedulePage);
       await schedulePage.close();
@@ -42,11 +44,20 @@ module.exports.scheduleScraper = async function(semester, courseCode) {
     }
 
     browser.close();
-    return schedule;
+    return [schedule, courseName];
   } catch (e) {
     return 0;
   }
 };
+
+async function extractName(schedulePage) {
+  const result = await schedulePage.evaluate(async () => {
+    // eslint-disable-next-line no-undef
+    const title = document.querySelector("table:nth-of-type(1) tbody tr:nth-of-type(1) td:nth-of-type(2) b font ");
+    return title.innerText.slice(0, -1);
+  });
+  return result;
+}
 
 async function extractScheduleData(schedulePage) {
   // await schedulePage.waitForSelector('table:nth-of-type(2) tbody tr:nth-of-type(2) td:nth-of-type(7)')
