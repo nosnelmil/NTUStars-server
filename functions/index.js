@@ -7,7 +7,7 @@ const {scheduleScraper} = require("./ntuScheduleScraper");
 const {formatData} = require("./scheduleFormatter");
 const {semScraper} = require("./ntuSemScraper");
 const {calcDateDiff} = require("./helper/calcDateDiff");
-const cors = require("cors")({origin: "https://ntu-schedule-maker.firebaseapp.com"});
+const cors = require("cors")({origin: true});
 // const cors = require("cors")({origin: true});
 initializeApp();
 
@@ -26,7 +26,7 @@ app.use(cors);
 //  //... (all course code)
 // ...
 
-app.get("/get-semesters", async (req, res) => {
+app.post("/get-semesters", async (req, res) => {
   cors(req, res, async () => {
     try {
       const docRef = db.collection("semestersInfo").doc("data");
@@ -71,17 +71,18 @@ app.get("/get-semesters", async (req, res) => {
   });
 });
 
-app.get("/get-schedule", async (req, res) => {
+app.post("/get-schedule", async (req, res) => {
   cors(req, res, async ()=>{
     try {
       const data = req.body;
+      log(data)
       if (!("courseCode" in data) || !("semester" in data)) {
         res.status(400).end();
         warn("User bad request for get-schedule");
         return;
       }
-      const semester = data.semester.toUpperCase();
-      const courseCode = data.courseCode.toUpperCase();
+      const semester = data.semester.trim().toUpperCase();
+      const courseCode = data.courseCode.trim().toUpperCase();
       // Get from database --> if not in database then scrape it
       const docRef = db.collection(semester).doc(courseCode);
       const doc = await docRef.get();
@@ -94,8 +95,9 @@ app.get("/get-schedule", async (req, res) => {
         const formattedSchedule = formatData(rawScheduleData);
         log(formattedSchedule);
         res.json({
-          name: courseName,
           success: true,
+          name: courseName,
+          courseCode: courseCode,
           schedule: formattedSchedule,
         });
         res.status(200).end();
@@ -112,6 +114,7 @@ app.get("/get-schedule", async (req, res) => {
         res.json({
           name: doc.data().name,
           success: true,
+          courseCode: doc.data().courseCode,
           schedule: doc.data().schedule,
         });
         res.status(200).end();
