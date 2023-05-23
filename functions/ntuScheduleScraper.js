@@ -46,7 +46,7 @@ module.exports.scheduleScraper = async function(semester, courseCode) {
     browser.close();
     return [schedule, courseName];
   } catch (e) {
-    return 0;
+    return [[], null];
   }
 };
 

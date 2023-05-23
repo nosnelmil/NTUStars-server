@@ -7,6 +7,7 @@ const {scheduleScraper} = require("./ntuScheduleScraper");
 const {formatData} = require("./scheduleFormatter");
 const {semScraper} = require("./ntuSemScraper");
 const {calcDateDiff} = require("./helper/calcDateDiff");
+const { validateCourseCode } = require("./helper/validateCourseCode");
 const cors = require("cors")({origin: true});
 // const cors = require("cors")({origin: true});
 initializeApp();
@@ -76,7 +77,10 @@ app.post("/get-schedule", async (req, res) => {
     try {
       const data = req.body;
       log(data)
-      if (!("courseCode" in data) || !("semester" in data)) {
+      // validate data
+      if (!("courseCode" in data) 
+        || !("semester" in data)
+        || !validateCourseCode(data["courseCode"])){
         res.status(400).end();
         warn("User bad request for get-schedule");
         return;
@@ -89,22 +93,23 @@ app.post("/get-schedule", async (req, res) => {
       if (!doc.exists) {
         const [rawScheduleData, courseName] = await scheduleScraper(semester, courseCode);
         if (!rawScheduleData || rawScheduleData.length == 0) {
-          res.status(400).end();
-          return;
+          res.status(200).end();
+          return
         }
         const formattedSchedule = formatData(rawScheduleData);
         log(formattedSchedule);
         res.json({
           success: true,
-          name: courseName,
+          courseName: courseName,
           courseCode: courseCode,
           schedule: formattedSchedule,
         });
         res.status(200).end();
+        
         // Update database
         log(`Uploading Sem ${semester} - Course ${courseCode} to db`);
         await docRef.set({
-          name: courseName,
+          courseName: courseName,
           courseCode: courseCode,
           schedule: formattedSchedule,
           updatedAt: FieldValue.serverTimestamp(),
@@ -112,12 +117,13 @@ app.post("/get-schedule", async (req, res) => {
         log("Uploaded");
       } else {
         res.json({
-          name: doc.data().name,
+          courseName: doc.data().courseName,
           success: true,
           courseCode: doc.data().courseCode,
           schedule: doc.data().schedule,
         });
         res.status(200).end();
+        return
       }
     } catch (e) {
       error("/get-schedule error", e);

@@ -19,10 +19,10 @@ module.exports.semScraper = async function(CourseCodes) {
       const data = {};
       // eslint-disable-next-line no-undef
       const options = document.querySelectorAll("select[name=\"acadsem\"] > option");
-
-      options.forEach((option, index) => {
+      for(let i =0; i<3; i++){
+        const option = options[i]
         data[option.value] = option.innerText;
-      });
+      }
       return data;
     });
   } catch (e) {
