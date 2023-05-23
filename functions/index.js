@@ -172,4 +172,4 @@ app.get("/get-time-dict", async (req, res) => {
   });
 });
 
-exports.app = functions.region("asia-east2").https.onRequest(app);
+exports.app = functions.runWith({memory: "512MB"}).region("asia-east1").https.onRequest(app);
