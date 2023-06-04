@@ -109,6 +109,7 @@ function timeToIndexedTime(rawTime) {
 
 function remarksToWeekNums(rawRemark) {
   if (!rawRemark) return [...Array(13).keys()].map((value) => value + 1);
+  if (!rawRemark.includes("Wk")) return []
   const temp = rawRemark.trim().split(" ");
   const weekString = temp[1];
   const weekNums = weekString.slice(2);

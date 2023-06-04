@@ -8,7 +8,7 @@ const {formatData} = require("./scheduleFormatter");
 const {semScraper} = require("./ntuSemScraper");
 const {calcDateDiff} = require("./helper/calcDateDiff");
 const { validateCourseCode } = require("./helper/validateCourseCode");
-const cors = require("cors")({origin: true});
+const cors = require("cors")({origin: "https://ntustars.com"});
 // const cors = require("cors")({origin: true});
 initializeApp();
 
