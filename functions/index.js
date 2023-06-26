@@ -125,7 +125,7 @@ exports.getSchedule = onRequest({memory: "512MB"}, async (req, res) => {
     res.status(500).end();
   }
 });
-exports.scrapeSchedule = onRequest({memory: "512MB"}, async (req, res) => {
+exports.getCourseContent = onRequest(async (req, res) => {
   try {
     const data = req.body;
     log(data)
