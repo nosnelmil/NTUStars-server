@@ -1,5 +1,5 @@
+const { log } = require("firebase-functions/logger");
 const puppeteer = require("puppeteer");
-const functions = require("firebase-functions");
 
 const url = "https://wish.wis.ntu.edu.sg/webexe/owa/aus_schedule.main";
 
@@ -40,7 +40,7 @@ module.exports.scheduleScraper = async function(semester, courseCode) {
       schedule = await extractScheduleData(schedulePage);
       await schedulePage.close();
     } else {
-      functions.logger.log("Course Schedule Tab not detected");
+      log("Course Schedule Tab not detected");
     }
 
     browser.close();
