@@ -5,6 +5,7 @@ const {initializeApp} = require("firebase-admin/app");
 const {getFirestore, FieldValue} = require("firebase-admin/firestore");
 const express = require("express");
 const {scheduleScraper} = require("./ntuScheduleScraper");
+const {courseContentScraper} = require("./ntuCourseScraper");
 const {formatData} = require("./scheduleFormatter");
 const {semScraper} = require("./ntuSemScraper");
 const {calcDateDiff} = require("./helper/calcDateDiff");
@@ -85,7 +86,7 @@ exports.getSchedule = onRequest({memory: "512MB"}, async (req, res) => {
     // Get from database --> if not in database then scrape it
     const docRef = db.collection(semester).doc(courseCode);
     const doc = await docRef.get();
-    if (!doc.exists) {
+    if (!doc.exists || doc.data().schedule == null) {
       const [rawScheduleData, courseName] = await scheduleScraper(semester, courseCode);
       if (!rawScheduleData || rawScheduleData.length == 0) {
         res.status(200).end();
@@ -108,7 +109,7 @@ exports.getSchedule = onRequest({memory: "512MB"}, async (req, res) => {
         courseCode: courseCode,
         schedule: formattedSchedule,
         updatedAt: FieldValue.serverTimestamp(),
-      });
+      }, {merge: true});
       log("Uploaded");
     } else {
       res.json({
@@ -139,41 +140,29 @@ exports.getCourseContent = onRequest(async (req, res) => {
     }
     const semester = data.semester.trim().toUpperCase();
     const courseCode = data.courseCode.trim().toUpperCase();
+
+    let contentData
     // Get from database --> if not in database then scrape it
     const docRef = db.collection(semester).doc(courseCode);
     const doc = await docRef.get();
-    if (!doc.exists) {
-      const [rawScheduleData, courseName] = await scheduleScraper(semester, courseCode);
-      if (!rawScheduleData || rawScheduleData.length == 0) {
+    if (!doc.exists || doc.data().description == null) {
+      contentData = await courseContentScraper(semester, courseCode);
+      if (!contentData) {
         res.status(200).end();
         return
       }
-      const formattedSchedule = formatData(rawScheduleData);
-      log(formattedSchedule);
-      res.json({
-        success: true,
-        courseName: courseName,
-        courseCode: courseCode,
-        schedule: formattedSchedule,
-      });
+      res.json(contentData)
       res.status(200).end();
       
       // Update database
-      log(`Uploading Sem ${semester} - Course ${courseCode} to db`);
+      log(`Uploading Sem ${semester} - Course ${courseCode} Content to db`);
       await docRef.set({
-        courseName: courseName,
-        courseCode: courseCode,
-        schedule: formattedSchedule,
+        ...contentData,
         updatedAt: FieldValue.serverTimestamp(),
-      });
+      }, {merge: true});
       log("Uploaded");
     } else {
-      res.json({
-        courseName: doc.data().courseName,
-        success: true,
-        courseCode: doc.data().courseCode,
-        schedule: doc.data().schedule,
-      });
+      res.json(doc.data());
       res.status(200).end();
       return
     }
