@@ -38,7 +38,6 @@ module.exports.scheduleScraper = async function(semester, courseCode) {
       courseName = await extractName(schedulePage);
       // scrape course schedule data
       schedule = await extractScheduleData(schedulePage);
-      await schedulePage.close();
     } else {
       log("Course Schedule Tab not detected");
     }

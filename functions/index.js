@@ -93,7 +93,6 @@ exports.getSchedule = onRequest({memory: "512MB"}, async (req, res) => {
         return
       }
       const formattedSchedule = formatData(rawScheduleData);
-      log(formattedSchedule);
       res.json({
         success: true,
         courseName: courseName,
@@ -112,12 +111,7 @@ exports.getSchedule = onRequest({memory: "512MB"}, async (req, res) => {
       }, {merge: true});
       log("Uploaded");
     } else {
-      res.json({
-        courseName: doc.data().courseName,
-        success: true,
-        courseCode: doc.data().courseCode,
-        schedule: doc.data().schedule,
-      });
+      res.json(doc.data());
       res.status(200).end();
       return
     }
