@@ -95,8 +95,8 @@ function timeToIndexedTime(rawTime) {
   if (timeArray[1][2] == "2") {
     timeArray[1] = timeArray[1].slice(0, 2).concat("30");
   } else if (timeArray[1][2] == "5") {
-    const increasedHour = parseInt(timeArray[1].slice(1, 2)) + 1;
-    timeArray[1] = timeArray[1].slice(0, 1).concat(`${increasedHour}00`);
+    const increasedHour = parseInt(timeArray[1].slice(0, 2)) + 1;
+    timeArray[1] = increasedHour >= 10 ? `${increasedHour}00` : `0${increasedHour}00`
   }
 
   const EndIndex = timeDict[timeArray[1]] - 1; // it ends at the previous time index hence minus 1
