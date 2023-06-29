@@ -1,5 +1,6 @@
 const { log } = require("firebase-functions/logger");
 const puppeteer = require("puppeteer");
+const {formatScheduleData} = require("./scheduleFormatter");
 
 const url = "https://wish.wis.ntu.edu.sg/webexe/owa/aus_schedule.main";
 
@@ -11,8 +12,7 @@ module.exports.scheduleScraper = async function(semester, courseCode) {
       args: ["--no-sandbox"],
     });
     let page = await browser.newPage();
-    let schedule = [];
-    let courseName = "";
+    
     let pageList = await browser.pages();
     for (let i = 1; i < pageList.length; i++) {
       await pageList[i].close();
@@ -34,34 +34,36 @@ module.exports.scheduleScraper = async function(semester, courseCode) {
 
     const newTarget = await browser.waitForTarget((target) => target.opener() === page.target());
     const schedulePage = await newTarget.page();
+    
+    let result = {};
     if (schedulePage) {
-      courseName = await extractName(schedulePage);
       // scrape course schedule data
-      schedule = await extractScheduleData(schedulePage);
+      result = await extractScheduleData(schedulePage);
     } else {
       log("Course Schedule Tab not detected");
     }
 
+    if (!result.schedule || result.schedule.length == 0) {
+      return null
+    }
     browser.close();
-    return [schedule, courseName];
+    
+    result.schedule = formatScheduleData(result.schedule);
+
+    return result;
   } catch (e) {
-    return [[], null];
+    return null;
   }
 };
 
-async function extractName(schedulePage) {
-  const result = await schedulePage.evaluate(async () => {
-    // eslint-disable-next-line no-undef
-    const title = document.querySelector("table:nth-of-type(1) tbody tr:nth-of-type(1) td:nth-of-type(2) b font ");
-    return title.innerText.slice(0, -1);
-  });
-  return result;
-}
-
 async function extractScheduleData(schedulePage) {
   // await schedulePage.waitForSelector('table:nth-of-type(2) tbody tr:nth-of-type(2) td:nth-of-type(7)')
+  
   const result = await schedulePage.evaluate(async () => {
-    const data = [];
+    const courseCode = document.querySelector("table:nth-of-type(1) tbody tr:nth-of-type(1) td:nth-of-type(1) b font ").innerText;
+    const courseName = document.querySelector("table:nth-of-type(1) tbody tr:nth-of-type(1) td:nth-of-type(2) b font ").innerText;
+    const au = document.querySelector("table:nth-of-type(1) tbody tr:nth-of-type(1) td:nth-of-type(3) b font ").innerText[0];
+    const schedule = [];
     // eslint-disable-next-line no-undef
     const rows = document.querySelectorAll("table:nth-of-type(2) tbody tr");
     let tdTags;
@@ -76,10 +78,14 @@ async function extractScheduleData(schedulePage) {
       tdTags.forEach((td) => {
         temp.push(td.innerText);
       });
-      data.push(temp);
+      schedule.push(temp);
     });
-    return data;
+    return {
+      courseCode,
+      courseName,
+      au,
+      schedule
+    };
   });
   return result;
 }
-// export default scheduleScraper

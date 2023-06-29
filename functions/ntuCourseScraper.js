@@ -31,6 +31,7 @@ module.exports.courseContentScraper = async function(sem, courseCode) {
     await frame.waitForSelector("body > center")
     const contentRawData = await extractContentData(page)
     log("Completed getting raw data")
+    browser.close();
 
     let contentData 
     if(contentRawData.length <= 1){
@@ -38,7 +39,6 @@ module.exports.courseContentScraper = async function(sem, courseCode) {
     }else{
       contentData = parseRawContentData(contentRawData)
     }
-    browser.close();
     return contentData
   } catch (e) {
     error("error", e)

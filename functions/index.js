@@ -3,10 +3,8 @@ const {setGlobalOptions} = require("firebase-functions/v2");
 const {log, error, warn} = require("firebase-functions/logger");
 const {initializeApp} = require("firebase-admin/app");
 const {getFirestore, FieldValue} = require("firebase-admin/firestore");
-const express = require("express");
 const {scheduleScraper} = require("./ntuScheduleScraper");
 const {courseContentScraper} = require("./ntuCourseScraper");
-const {formatData} = require("./scheduleFormatter");
 const {semScraper} = require("./ntuSemScraper");
 const {calcDateDiff} = require("./helper/calcDateDiff");
 const { validateRequest } = require("./helper/validateRequest");
@@ -46,8 +44,6 @@ exports.getSemesters = onRequest(async (req, res) => {
     }
     res.json({
       semesters,
-      success: true,
-      message: "",
     });
     res.status(200).end();
     if (toUpdate) {
@@ -61,11 +57,7 @@ exports.getSemesters = onRequest(async (req, res) => {
     // Store semestersInfo
   } catch (e) {
     error(e);
-    res.json({
-      success: false,
-      message: e,
-    });
-    res.status(500).end();
+    return null
   }
 });
 
@@ -83,27 +75,19 @@ exports.getSchedule = onRequest({memory: "512MB"}, async (req, res) => {
     // Get from database --> if not in database then scrape it
     const docRef = db.collection(semester).doc(courseCode);
     const doc = await docRef.get();
-    if (!doc.exists || doc.data().schedule == null) {
-      const [rawScheduleData, courseName] = await scheduleScraper(semester, courseCode);
-      if (!rawScheduleData || rawScheduleData.length == 0) {
+    if (!doc.exists || doc.data().schedule == null || doc.data().au == null) {
+      const result = await scheduleScraper(semester, courseCode);
+      if (!result) {
         res.status(200).end();
         return
       }
-      const formattedSchedule = formatData(rawScheduleData);
-      res.json({
-        success: true,
-        courseName: courseName,
-        courseCode: courseCode,
-        schedule: formattedSchedule,
-      });
+      res.json(result);
       res.status(200).end();
       
       // Update database
       log(`Uploading Sem ${semester} - Course ${courseCode} to db`);
       await docRef.set({
-        courseName: courseName,
-        courseCode: courseCode,
-        schedule: formattedSchedule,
+        ...result,
         updatedAt: FieldValue.serverTimestamp(),
       }, {merge: true});
       log("Uploaded");
@@ -122,12 +106,9 @@ exports.getCourseContent = onRequest(async (req, res) => {
     const data = req.body;
     log(data)
     // validate data
-    if (!("courseCode" in data) 
-      || !("semester" in data)
-      || !validateCourseCode(data["courseCode"])){
-      res.status(400).end();
-      warn("User bad request for get-schedule");
-      return;
+    if (validateRequest(data)){
+      throw new HttpsError("invalid-argument", "The function must be called " +
+          "with two arguments \"Semester & Course\".");
     }
     const semester = data.semester.trim().toUpperCase();
     const courseCode = data.courseCode.trim().toUpperCase();

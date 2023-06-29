@@ -1,6 +1,4 @@
-const {log} = require("firebase-functions/logger");
-
-module.exports.formatData = function(rawScheduleData) {
+module.exports.formatScheduleData = function(rawScheduleData) {
   // schedule schema
   // schedule
   // // {index}
