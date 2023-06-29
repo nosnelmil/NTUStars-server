@@ -9,7 +9,7 @@ const {courseContentScraper} = require("./ntuCourseScraper");
 const {formatData} = require("./scheduleFormatter");
 const {semScraper} = require("./ntuSemScraper");
 const {calcDateDiff} = require("./helper/calcDateDiff");
-const { validateCourseCode } = require("./helper/validateCourseCode");
+const { validateRequest } = require("./helper/validateRequest");
 // const cors = require("cors")({origin:[ "https://ntustars.com", "http://127.0.0.1:5173/"]});
 initializeApp();
 
@@ -74,10 +74,7 @@ exports.getSchedule = onRequest({memory: "512MB"}, async (req, res) => {
     const data = req.body;
     log(data)
     // validate data
-    if (!("courseCode" in data) 
-      || !("semester" in data)
-      || !validateCourseCode(data["courseCode"])){
-      warn("User bad request for get-schedule");
+    if (validateRequest(data)){
       throw new HttpsError("invalid-argument", "The function must be called " +
           "with two arguments \"Semester & Course\".");
     }
