@@ -12,8 +12,7 @@ const { validateRequest } = require("./helper/validateRequest");
 initializeApp();
 
 const db = getFirestore();
-// setGlobalOptions({ cors: [/ntustars\.com$/], region: "asia-east1" });
-setGlobalOptions({ cors: true, region: "asia-east1" });
+setGlobalOptions({ region: "asia-east1" });
 // Database schema
 // semestersInfo
 //  //  data --> names: {2014;T: 2014 semester 1 , ...}, updatedAt: DateTime
@@ -25,9 +24,8 @@ setGlobalOptions({ cors: true, region: "asia-east1" });
 //  //... (all course code)
 // ...
 
-exports.getSemesters = onRequest(async (req, res) => {
+exports.getsemesters = onRequest({ cors: [/ntustars\.com$/]}, async (req, res) => {
   try {
-    logger("entered")
     const docRef = db.collection("semestersInfo").doc("data");
     const doc = await docRef.get();
     let toUpdate = false;
@@ -63,7 +61,7 @@ exports.getSemesters = onRequest(async (req, res) => {
   }
 });
 
-exports.getSchedule = onRequest({memory: "512MB"}, async (req, res) => {
+exports.getschedule = onRequest({cors: [/ntustars\.com$/], memory: "512MB"}, async (req, res) => {
   try {
     const data = req.body;
     log(data)
@@ -103,7 +101,7 @@ exports.getSchedule = onRequest({memory: "512MB"}, async (req, res) => {
     res.status(500).end();
   }
 });
-exports.getCourseContent = onRequest(async (req, res) => {
+exports.getcoursecontent = onRequest({cors: [/ntustars\.com$/]}, async (req, res) => {
   try {
     const data = req.body;
     log(data)
@@ -147,7 +145,7 @@ exports.getCourseContent = onRequest(async (req, res) => {
 });
 
 
-exports.getTimeDict = onRequest( async (req, res) => {
+exports.gettimeDict = onRequest( async (req, res) => {
   const timeDict = {
     "0800": 0,
     "0830": 1,
