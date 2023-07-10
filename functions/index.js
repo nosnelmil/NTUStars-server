@@ -1,5 +1,5 @@
 const {onRequest} = require("firebase-functions/v2/https");
-const {setGlobalOptions} = require("firebase-functions/v2");
+const {setGlobalOptions, logger} = require("firebase-functions/v2");
 const {log, error, warn} = require("firebase-functions/logger");
 const {initializeApp} = require("firebase-admin/app");
 const {getFirestore, FieldValue} = require("firebase-admin/firestore");
@@ -12,7 +12,8 @@ const { validateRequest } = require("./helper/validateRequest");
 initializeApp();
 
 const db = getFirestore();
-setGlobalOptions({ cors: [ "ntustars.com", "127.0.0.1:5173"], region: "asia-east1" });
+// setGlobalOptions({ cors: [/ntustars\.com$/], region: "asia-east1" });
+setGlobalOptions({ cors: true, region: "asia-east1" });
 // Database schema
 // semestersInfo
 //  //  data --> names: {2014;T: 2014 semester 1 , ...}, updatedAt: DateTime
@@ -26,6 +27,7 @@ setGlobalOptions({ cors: [ "ntustars.com", "127.0.0.1:5173"], region: "asia-east
 
 exports.getSemesters = onRequest(async (req, res) => {
   try {
+    logger("entered")
     const docRef = db.collection("semestersInfo").doc("data");
     const doc = await docRef.get();
     let toUpdate = false;
