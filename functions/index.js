@@ -1,21 +1,18 @@
-const functions = require("firebase-functions");
+const {onRequest} = require("firebase-functions/v2/https");
+const {setGlobalOptions, logger} = require("firebase-functions/v2");
 const {log, error, warn} = require("firebase-functions/logger");
 const {initializeApp} = require("firebase-admin/app");
 const {getFirestore, FieldValue} = require("firebase-admin/firestore");
-const express = require("express");
 const {scheduleScraper} = require("./ntuScheduleScraper");
-const {formatData} = require("./scheduleFormatter");
+const {courseContentScraper} = require("./ntuCourseScraper");
 const {semScraper} = require("./ntuSemScraper");
 const {calcDateDiff} = require("./helper/calcDateDiff");
-const { validateCourseCode } = require("./helper/validateCourseCode");
-const cors = require("cors")({origin: "https://ntustars.com"});
-// const cors = require("cors")({origin: true});
+const { validateRequest } = require("./helper/validateRequest");
+// const cors = require("cors")({origin:[ "https://ntustars.com", "http://127.0.0.1:5173/"]});
 initializeApp();
 
 const db = getFirestore();
-const app = express();
-app.use(cors);
-
+setGlobalOptions({ region: "asia-east1" });
 // Database schema
 // semestersInfo
 //  //  data --> names: {2014;T: 2014 semester 1 , ...}, updatedAt: DateTime
@@ -27,112 +24,128 @@ app.use(cors);
 //  //... (all course code)
 // ...
 
-app.post("/get-semesters", async (req, res) => {
-  cors(req, res, async () => {
-    try {
-      const docRef = db.collection("semestersInfo").doc("data");
-      const doc = await docRef.get();
-      let toUpdate = false;
-      let semesters = {};
-      if (!doc.exists || calcDateDiff(doc.data().updatedAt.toDate(), new Date()) >= 1 ) {
-        // No Such document / needs to be updated --> scrape to get document
-        semesters = await semScraper();
-        if (Object.keys(semesters).length == 0) {
-          error("SemScraper returned empty object");
-          throw new Error("Error Scraping Semesters");
-        }
-        toUpdate=true;
-        // return semesters then store it
-      } else {
-        semesters = doc.data().names;
+exports.getsemesters = onRequest({ cors: [/ntustars\.com$/]}, async (req, res) => {
+  try {
+    const docRef = db.collection("semestersInfo").doc("data");
+    const doc = await docRef.get();
+    let toUpdate = false;
+    let semesters = {};
+    if (!doc.exists || calcDateDiff(doc.data().updatedAt.toDate(), new Date()) >= 1 ) {
+      // No Such document / needs to be updated --> scrape to get document
+      semesters = await semScraper();
+      if (Object.keys(semesters).length == 0) {
+        error("SemScraper returned empty object");
+        throw new Error("Error Scraping Semesters");
       }
-      res.json({
-        semesters,
-        success: true,
-        message: "",
-      });
-      res.status(200).end();
-      if (toUpdate) {
-        log("Updating semestersInfo");
-        await docRef.set({
-          names: semesters,
-          updatedAt: FieldValue.serverTimestamp(),
-        });
-        log("Updated SemestersInfo");
-      }
-      // Store semestersInfo
-    } catch (e) {
-      error(e);
-      res.json({
-        success: false,
-        message: e,
-      });
-      res.status(500).end();
+      toUpdate=true;
+      // return semesters then store it
+    } else {
+      semesters = doc.data().names;
     }
-  });
+    res.json({
+      semesters,
+    });
+    res.status(200).end();
+    if (toUpdate) {
+      log("Updating semestersInfo");
+      await docRef.set({
+        names: semesters,
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+      log("Updated SemestersInfo");
+    }
+    // Store semestersInfo
+  } catch (e) {
+    error(e);
+    return null
+  }
 });
 
-app.post("/get-schedule", async (req, res) => {
-  cors(req, res, async ()=>{
-    try {
-      const data = req.body;
-      log(data)
-      // validate data
-      if (!("courseCode" in data) 
-        || !("semester" in data)
-        || !validateCourseCode(data["courseCode"])){
-        res.status(400).end();
-        warn("User bad request for get-schedule");
-        return;
-      }
-      const semester = data.semester.trim().toUpperCase();
-      const courseCode = data.courseCode.trim().toUpperCase();
-      // Get from database --> if not in database then scrape it
-      const docRef = db.collection(semester).doc(courseCode);
-      const doc = await docRef.get();
-      if (!doc.exists) {
-        const [rawScheduleData, courseName] = await scheduleScraper(semester, courseCode);
-        if (!rawScheduleData || rawScheduleData.length == 0) {
-          res.status(200).end();
-          return
-        }
-        const formattedSchedule = formatData(rawScheduleData);
-        log(formattedSchedule);
-        res.json({
-          success: true,
-          courseName: courseName,
-          courseCode: courseCode,
-          schedule: formattedSchedule,
-        });
-        res.status(200).end();
-        
-        // Update database
-        log(`Uploading Sem ${semester} - Course ${courseCode} to db`);
-        await docRef.set({
-          courseName: courseName,
-          courseCode: courseCode,
-          schedule: formattedSchedule,
-          updatedAt: FieldValue.serverTimestamp(),
-        });
-        log("Uploaded");
-      } else {
-        res.json({
-          courseName: doc.data().courseName,
-          success: true,
-          courseCode: doc.data().courseCode,
-          schedule: doc.data().schedule,
-        });
+exports.getschedule = onRequest({cors: [/ntustars\.com$/], memory: "512MB"}, async (req, res) => {
+  try {
+    const data = req.body;
+    log(data)
+    // validate data
+    if (validateRequest(data)){
+      throw new HttpsError("invalid-argument", "The function must be called " +
+          "with two arguments \"Semester & Course\".");
+    }
+    const semester = data.semester.trim().toUpperCase();
+    const courseCode = data.courseCode.trim().toUpperCase();
+    // Get from database --> if not in database then scrape it
+    const docRef = db.collection(semester).doc(courseCode);
+    const doc = await docRef.get();
+    if (!doc.exists || doc.data().schedule == null || doc.data().au == null) {
+      const result = await scheduleScraper(semester, courseCode);
+      if (!result) {
         res.status(200).end();
         return
       }
-    } catch (e) {
-      error("/get-schedule error", e);
-      res.status(500).end();
+      res.json(result);
+      res.status(200).end();
+      
+      // Update database
+      log(`Uploading Sem ${semester} - Course ${courseCode} to db`);
+      await docRef.set({
+        ...result,
+        updatedAt: FieldValue.serverTimestamp(),
+      }, {merge: true});
+      log("Uploaded");
+    } else {
+      res.json(doc.data());
+      res.status(200).end();
+      return
     }
-  });
+  } catch (e) {
+    error("/get-schedule error", e);
+    res.status(500).end();
+  }
+});
+exports.getcoursecontent = onRequest({cors: [/ntustars\.com$/]}, async (req, res) => {
+  try {
+    const data = req.body;
+    log(data)
+    // validate data
+    if (validateRequest(data)){
+      throw new HttpsError("invalid-argument", "The function must be called " +
+          "with two arguments \"Semester & Course\".");
+    }
+    const semester = data.semester.trim().toUpperCase();
+    const courseCode = data.courseCode.trim().toUpperCase();
+
+    let contentData
+    // Get from database --> if not in database then scrape it
+    const docRef = db.collection(semester).doc(courseCode);
+    const doc = await docRef.get();
+    if (!doc.exists || doc.data().description == null) {
+      contentData = await courseContentScraper(semester, courseCode);
+      if (!contentData) {
+        res.status(200).end();
+        return
+      }
+      res.json(contentData)
+      res.status(200).end();
+      
+      // Update database
+      log(`Uploading Sem ${semester} - Course ${courseCode} Content to db`);
+      await docRef.set({
+        ...contentData,
+        updatedAt: FieldValue.serverTimestamp(),
+      }, {merge: true});
+      log("Uploaded");
+    } else {
+      res.json(doc.data());
+      res.status(200).end();
+      return
+    }
+  } catch (e) {
+    error("/get-schedule error", e);
+    res.status(500).end();
+  }
 });
 
-app.get("/get-time-dict", async (req, res) => {
+
+exports.gettimeDict = onRequest( async (req, res) => {
   const timeDict = {
     "0800": 0,
     "0830": 1,
@@ -171,5 +184,3 @@ app.get("/get-time-dict", async (req, res) => {
     timeDict,
   });
 });
-
-exports.app = functions.runWith({memory: "512MB"}).region("asia-east1").https.onRequest(app);
