@@ -123,6 +123,12 @@ exports.getcoursecontent = onRequest({cors: [/ntustars\.com$/]}, async (req, res
         res.status(200).end();
         return
       }
+      if(doc.data().schedule == null){
+        scheduleData = await scheduleScraper(semester, courseCode);
+        contentData.schedule = scheduleData.schedule
+      }else{
+        contentData.schedule = doc.data().schedule
+      }
       res.json(contentData)
       res.status(200).end();
       
