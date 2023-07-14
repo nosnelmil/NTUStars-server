@@ -13,6 +13,7 @@ initializeApp();
 
 const db = getFirestore();
 setGlobalOptions({ region: "asia-east1" });
+const corsPolicy = { cors: [/ntustars\.com$/]}
 // Database schema
 // semestersInfo
 //  //  data --> names: {2014;T: 2014 semester 1 , ...}, updatedAt: DateTime
@@ -24,7 +25,7 @@ setGlobalOptions({ region: "asia-east1" });
 //  //... (all course code)
 // ...
 
-exports.getsemesters = onRequest({ cors: [/ntustars\.com$/]}, async (req, res) => {
+exports.getsemesters = onRequest(corsPolicy, async (req, res) => {
   try {
     const docRef = db.collection("semestersInfo").doc("data");
     const doc = await docRef.get();
@@ -61,7 +62,7 @@ exports.getsemesters = onRequest({ cors: [/ntustars\.com$/]}, async (req, res) =
   }
 });
 
-exports.getschedule = onRequest({cors: [/ntustars\.com$/], memory: "512MB"}, async (req, res) => {
+exports.getschedule = onRequest({...corsPolicy, memory: "512MB"}, async (req, res) => {
   try {
     const data = req.body;
     log(data)
@@ -101,7 +102,7 @@ exports.getschedule = onRequest({cors: [/ntustars\.com$/], memory: "512MB"}, asy
     res.status(500).end();
   }
 });
-exports.getcoursecontent = onRequest({cors: [/ntustars\.com$/]}, async (req, res) => {
+exports.getcoursecontent = onRequest(corsPolicy, async (req, res) => {
   try {
     const data = req.body;
     log(data)
@@ -122,6 +123,12 @@ exports.getcoursecontent = onRequest({cors: [/ntustars\.com$/]}, async (req, res
       if (!contentData) {
         res.status(200).end();
         return
+      }
+      if(doc.data().schedule == null){
+        scheduleData = await scheduleScraper(semester, courseCode);
+        contentData.schedule = scheduleData.schedule
+      }else{
+        contentData.schedule = doc.data().schedule
       }
       res.json(contentData)
       res.status(200).end();
@@ -145,7 +152,7 @@ exports.getcoursecontent = onRequest({cors: [/ntustars\.com$/]}, async (req, res
 });
 
 
-exports.gettimeDict = onRequest( async (req, res) => {
+exports.gettimeDict = onRequest(corsPolicy, async (req, res) => {
   const timeDict = {
     "0800": 0,
     "0830": 1,
