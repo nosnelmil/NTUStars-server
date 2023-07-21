@@ -12,7 +12,7 @@ const { validateRequest } = require("./helper/validateRequest");
 initializeApp();
 
 const db = getFirestore();
-setGlobalOptions({ region: "asia-east1" });
+setGlobalOptions({ region: "asia-east1", cpu: 'gcf_gen1' });
 const corsPolicy = { cors: [/ntustars\.com$/]}
 // Database schema
 // semestersInfo
@@ -25,7 +25,7 @@ const corsPolicy = { cors: [/ntustars\.com$/]}
 //  //... (all course code)
 // ...
 
-exports.getsemesters = onRequest(corsPolicy, async (req, res) => {
+exports.getsemesters = onRequest({ cors: [/ntustars\.com$/], memory: "512MiB"}, async (req, res) => {
   try {
     const docRef = db.collection("semestersInfo").doc("data");
     const doc = await docRef.get();
@@ -62,7 +62,7 @@ exports.getsemesters = onRequest(corsPolicy, async (req, res) => {
   }
 });
 
-exports.getschedule = onRequest({...corsPolicy, memory: "512MB"}, async (req, res) => {
+exports.getschedule = onRequest({cors: [/ntustars\.com$/], memory: "512MiB"}, async (req, res) => {
   try {
     const data = req.body;
     log(data)
@@ -102,8 +102,9 @@ exports.getschedule = onRequest({...corsPolicy, memory: "512MB"}, async (req, re
     res.status(500).end();
   }
 });
-exports.getcoursecontent = onRequest(corsPolicy, async (req, res) => {
+exports.getcoursecontent = onRequest({ cors: [/ntustars\.com$/], memory: "512MiB"}, async (req, res) => {
   try {
+    console.log("called")
     const data = req.body;
     log(data)
     // validate data
@@ -130,6 +131,7 @@ exports.getcoursecontent = onRequest(corsPolicy, async (req, res) => {
       }else{
         contentData.schedule = doc.data().schedule
       }
+      log(`Successfully retrieved course content: ${contentData}`)
       res.json(contentData)
       res.status(200).end();
       
@@ -152,7 +154,7 @@ exports.getcoursecontent = onRequest(corsPolicy, async (req, res) => {
 });
 
 
-exports.gettimeDict = onRequest(corsPolicy, async (req, res) => {
+exports.gettimeDict = onRequest({ cors: [/ntustars\.com$/]}, async (req, res) => {
   const timeDict = {
     "0800": 0,
     "0830": 1,
