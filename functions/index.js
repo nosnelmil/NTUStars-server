@@ -25,7 +25,7 @@ const corsPolicy = { cors: [/ntustars\.com$/]}
 //  //... (all course code)
 // ...
 
-exports.getsemesters = onRequest({ cors: [/ntustars\.com$/]}, async (req, res) => {
+exports.getsemesters = onRequest({ cors: [/ntustars\.com$/], memory: "512MiB"}, async (req, res) => {
   try {
     const docRef = db.collection("semestersInfo").doc("data");
     const doc = await docRef.get();
@@ -104,6 +104,7 @@ exports.getschedule = onRequest({cors: [/ntustars\.com$/], memory: "512MiB"}, as
 });
 exports.getcoursecontent = onRequest({ cors: [/ntustars\.com$/], memory: "512MiB"}, async (req, res) => {
   try {
+    console.log("called")
     const data = req.body;
     log(data)
     // validate data
@@ -130,6 +131,7 @@ exports.getcoursecontent = onRequest({ cors: [/ntustars\.com$/], memory: "512MiB
       }else{
         contentData.schedule = doc.data().schedule
       }
+      log(`Successfully retrieved course content: ${contentData}`)
       res.json(contentData)
       res.status(200).end();
       
