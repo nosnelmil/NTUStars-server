@@ -17,4 +17,7 @@ module.exports = {
     "max-len": ["error", {"code": 120}],
   },
   parser: "babel-eslint",
+  parserOptions: {
+    "requireConfigFile": false,
+  }
 };

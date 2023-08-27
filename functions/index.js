@@ -1,19 +1,19 @@
 const {onRequest} = require("firebase-functions/v2/https");
-const {setGlobalOptions, logger} = require("firebase-functions/v2");
-const {log, error, warn} = require("firebase-functions/logger");
+const {setGlobalOptions} = require("firebase-functions/v2");
+const {log, error} = require("firebase-functions/logger");
 const {initializeApp} = require("firebase-admin/app");
 const {getFirestore, FieldValue} = require("firebase-admin/firestore");
 const {scheduleScraper} = require("./ntuScheduleScraper");
 const {courseContentScraper} = require("./ntuCourseScraper");
 const {semScraper} = require("./ntuSemScraper");
 const {calcDateDiff} = require("./helper/calcDateDiff");
-const { validateRequest } = require("./helper/validateRequest");
+const {validateRequest} = require("./helper/validateRequest");
 // const cors = require("cors")({origin:[ "https://ntustars.com", "http://127.0.0.1:5173/"]});
 initializeApp();
 
 const db = getFirestore();
-setGlobalOptions({ region: "asia-east1", cpu: 'gcf_gen1' });
-const corsPolicy = { cors: [/ntustars\.com$/]}
+setGlobalOptions({region: "asia-east1", cpu: "gcf_gen1"});
+// const corsPolicy = {cors: [/ntustars\.com$/]};
 // Database schema
 // semestersInfo
 //  //  data --> names: {2014;T: 2014 semester 1 , ...}, updatedAt: DateTime
@@ -25,7 +25,7 @@ const corsPolicy = { cors: [/ntustars\.com$/]}
 //  //... (all course code)
 // ...
 
-exports.getsemesters = onRequest({ cors: [/ntustars\.com$/], memory: "512MiB"}, async (req, res) => {
+exports.getsemesters = onRequest({cors: [/ntustars\.com$/], memory: "512MiB"}, async (req, res) => {
   try {
     const docRef = db.collection("semestersInfo").doc("data");
     const doc = await docRef.get();
@@ -58,16 +58,16 @@ exports.getsemesters = onRequest({ cors: [/ntustars\.com$/], memory: "512MiB"}, 
     // Store semestersInfo
   } catch (e) {
     error(e);
-    return null
+    return null;
   }
 });
 
 exports.getschedule = onRequest({cors: [/ntustars\.com$/], memory: "512MiB"}, async (req, res) => {
   try {
     const data = req.body;
-    log(data)
+    log(data);
     // validate data
-    if (validateRequest(data)){
+    if (validateRequest(data)) {
       throw new HttpsError("invalid-argument", "The function must be called " +
           "with two arguments \"Semester & Course\".");
     }
@@ -80,11 +80,11 @@ exports.getschedule = onRequest({cors: [/ntustars\.com$/], memory: "512MiB"}, as
       const result = await scheduleScraper(semester, courseCode);
       if (!result) {
         res.status(200).end();
-        return
+        return;
       }
       res.json(result);
       res.status(200).end();
-      
+
       // Update database
       log(`Uploading Sem ${semester} - Course ${courseCode} to db`);
       await docRef.set({
@@ -95,27 +95,28 @@ exports.getschedule = onRequest({cors: [/ntustars\.com$/], memory: "512MiB"}, as
     } else {
       res.json(doc.data());
       res.status(200).end();
-      return
+      return;
     }
   } catch (e) {
     error("/get-schedule error", e);
     res.status(500).end();
   }
 });
-exports.getcoursecontent = onRequest({ cors: [/ntustars\.com$/], memory: "512MiB"}, async (req, res) => {
+exports.getcoursecontent = onRequest({cors: [/ntustars\.com$/], memory: "512MiB"}, async (req, res) => {
   try {
-    console.log("called")
+    console.log("called");
     const data = req.body;
-    log(data)
+    log(data);
     // validate data
-    if (validateRequest(data)){
+    if (validateRequest(data)) {
+      // eslint-disable-next-line no-undef
       throw new HttpsError("invalid-argument", "The function must be called " +
           "with two arguments \"Semester & Course\".");
     }
     const semester = data.semester.trim().toUpperCase();
     const courseCode = data.courseCode.trim().toUpperCase();
 
-    let contentData
+    let contentData;
     // Get from database --> if not in database then scrape it
     const docRef = db.collection(semester).doc(courseCode);
     const doc = await docRef.get();
@@ -123,18 +124,18 @@ exports.getcoursecontent = onRequest({ cors: [/ntustars\.com$/], memory: "512MiB
       contentData = await courseContentScraper(semester, courseCode);
       if (!contentData) {
         res.status(200).end();
-        return
+        return;
       }
-      if(doc.data().schedule == null){
-        scheduleData = await scheduleScraper(semester, courseCode);
-        contentData.schedule = scheduleData.schedule
-      }else{
-        contentData.schedule = doc.data().schedule
+      if (doc.data().schedule == null) {
+        const scheduleData = await scheduleScraper(semester, courseCode);
+        contentData.schedule = scheduleData.schedule;
+      } else {
+        contentData.schedule = doc.data().schedule;
       }
-      log(`Successfully retrieved course content: ${contentData}`)
-      res.json(contentData)
+      log(`Successfully retrieved course content: ${contentData}`);
+      res.json(contentData);
       res.status(200).end();
-      
+
       // Update database
       log(`Uploading Sem ${semester} - Course ${courseCode} Content to db`);
       await docRef.set({
@@ -145,7 +146,7 @@ exports.getcoursecontent = onRequest({ cors: [/ntustars\.com$/], memory: "512MiB
     } else {
       res.json(doc.data());
       res.status(200).end();
-      return
+      return;
     }
   } catch (e) {
     error("/get-schedule error", e);
@@ -154,7 +155,7 @@ exports.getcoursecontent = onRequest({ cors: [/ntustars\.com$/], memory: "512MiB
 });
 
 
-exports.gettimeDict = onRequest({ cors: [/ntustars\.com$/]}, async (req, res) => {
+exports.gettimeDict = onRequest({cors: [/ntustars\.com$/]}, async (req, res) => {
   const timeDict = {
     "0800": 0,
     "0830": 1,
