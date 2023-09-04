@@ -1,6 +1,6 @@
 const {onRequest} = require("firebase-functions/v2/https");
 const {setGlobalOptions} = require("firebase-functions/v2");
-const {log, error} = require("firebase-functions/logger");
+const {log, error, warn} = require("firebase-functions/logger");
 const {initializeApp} = require("firebase-admin/app");
 const {getFirestore, FieldValue} = require("firebase-admin/firestore");
 const {scheduleScraper} = require("./ntuScheduleScraper");
@@ -68,8 +68,9 @@ exports.getschedule = onRequest({cors: [/ntustars\.com$/], memory: "512MiB"}, as
     log(data);
     // validate data
     if (validateRequest(data)) {
-      throw new HttpsError("invalid-argument", "The function must be called " +
-          "with two arguments \"Semester & Course\".");
+      warn("/get-schedule error", `Invalid Argument: data: ${data}`);
+      res.status(400).end();
+      return;
     }
     const semester = data.semester.trim().toUpperCase();
     const courseCode = data.courseCode.trim().toUpperCase();
@@ -109,9 +110,9 @@ exports.getcoursecontent = onRequest({cors: [/ntustars\.com$/], memory: "512MiB"
     log(data);
     // validate data
     if (validateRequest(data)) {
-      // eslint-disable-next-line no-undef
-      throw new HttpsError("invalid-argument", "The function must be called " +
-          "with two arguments \"Semester & Course\".");
+      warn("/get-schedule error", `Invalid Argument: data: ${data}`);
+      res.status(400).end();
+      return;
     }
     const semester = data.semester.trim().toUpperCase();
     const courseCode = data.courseCode.trim().toUpperCase();
