@@ -1,5 +1,3 @@
-const {log} = require("firebase-functions/logger");
-
 module.exports.calcDateDiff = function(date1, date2) {
   if (typeof date1.getMonth === "function" && typeof date2.getMonth === "function") {
     const diffTime = Math.abs(date2 - date1);

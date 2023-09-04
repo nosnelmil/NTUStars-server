@@ -94,7 +94,7 @@ function timeToIndexedTime(rawTime) {
     timeArray[1] = timeArray[1].slice(0, 2).concat("30");
   } else if (timeArray[1][2] == "5") {
     const increasedHour = parseInt(timeArray[1].slice(0, 2)) + 1;
-    timeArray[1] = increasedHour >= 10 ? `${increasedHour}00` : `0${increasedHour}00`
+    timeArray[1] = increasedHour >= 10 ? `${increasedHour}00` : `0${increasedHour}00`;
   }
 
   const EndIndex = timeDict[timeArray[1]] - 1; // it ends at the previous time index hence minus 1
@@ -107,7 +107,7 @@ function timeToIndexedTime(rawTime) {
 
 function remarksToWeekNums(rawRemark) {
   if (!rawRemark) return [...Array(13).keys()].map((value) => value + 1);
-  if (!rawRemark.includes("Wk")) return []
+  if (!rawRemark.includes("Wk")) return [];
   const temp = rawRemark.trim().split(" ");
   const weekString = temp[1];
   const weekNums = weekString.slice(2);
