@@ -2,7 +2,7 @@ const puppeteer = require("puppeteer");
 
 const url = "https://wish.wis.ntu.edu.sg/webexe/owa/aus_schedule.main";
 
-module.exports.semScraper = async function(CourseCodes) {
+module.exports.semScraper = async function (CourseCodes) {
   // start puppeteer
   const browser = await puppeteer.launch({
     // Note: --no-sandbox is required in this env.
@@ -19,8 +19,8 @@ module.exports.semScraper = async function(CourseCodes) {
       const data = {};
       // eslint-disable-next-line no-undef
       const options = document.querySelectorAll("select[name=\"acadsem\"] > option");
-      for(let i =0; i<3; i++){
-        const option = options[i]
+      for (let i = 0; i < 3; i++) {
+        const option = options[i];
         data[option.value] = option.innerText;
       }
       return data;

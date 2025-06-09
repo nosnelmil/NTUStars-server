@@ -6,6 +6,7 @@ module.exports = {
   },
   extends: [
     "eslint:recommended",
+    'plugin:import/typescript',
     "google",
   ],
   rules: {
@@ -14,10 +15,10 @@ module.exports = {
     "global-require": 0,
     "eslint linebreak-style": [0, "error", "windows"],
     "require-jsdoc": 0,
-    "max-len": ["error", {"code": 120}],
+    "max-len": ["error", { "code": 120 }],
   },
   parser: "babel-eslint",
   parserOptions: {
     "requireConfigFile": false,
-  }
+  },
 };

@@ -1,18 +1,20 @@
-const {onRequest} = require("firebase-functions/v2/https");
-const {setGlobalOptions} = require("firebase-functions/v2");
-const {log, error} = require("firebase-functions/logger");
-const {initializeApp} = require("firebase-admin/app");
-const {getFirestore, FieldValue} = require("firebase-admin/firestore");
-const {scheduleScraper} = require("./ntuScheduleScraper");
-const {courseContentScraper} = require("./ntuCourseScraper");
-const {semScraper} = require("./ntuSemScraper");
-const {calcDateDiff} = require("./helper/calcDateDiff");
-const {validateRequest} = require("./helper/validateRequest");
+const { onRequest } = require("firebase-functions/v2/https");
+const { setGlobalOptions } = require("firebase-functions/v2");
+const { log, error } = require("firebase-functions/logger");
+const { initializeApp } = require("firebase-admin/app");
+const { getFirestore, FieldValue } = require("firebase-admin/firestore");
+const { scheduleScraper } = require("./ntuScheduleScraper");
+const { courseContentScraper } = require("./ntuCourseScraper");
+const { semScraper } = require("./ntuSemScraper");
+const { calcDateDiff } = require("./helper/calcDateDiff");
+const { validateRequest } = require("./helper/validateRequest");
+const { examScraper } = require("./ntuExamScraper");
+
 // const cors = require("cors")({origin:[ "https://ntustars.com", "http://127.0.0.1:5173/"]});
 initializeApp();
 
 const db = getFirestore();
-setGlobalOptions({region: "asia-east1", cpu: "gcf_gen1"});
+setGlobalOptions({ region: "asia-east1", cpu: "gcf_gen1" });
 // const corsPolicy = {cors: [/ntustars\.com$/]};
 // Database schema
 // semestersInfo
@@ -25,20 +27,20 @@ setGlobalOptions({region: "asia-east1", cpu: "gcf_gen1"});
 //  //... (all course code)
 // ...
 
-exports.getsemesters = onRequest({cors: [/ntustars\.com$/], memory: "512MiB"}, async (req, res) => {
+exports.getsemesters = onRequest({ cors: [/ntustars\.com$/], memory: "512MiB" }, async (req, res) => {
   try {
     const docRef = db.collection("semestersInfo").doc("data");
     const doc = await docRef.get();
     let toUpdate = false;
     let semesters = {};
-    if (!doc.exists || calcDateDiff(doc.data().updatedAt.toDate(), new Date()) >= 1 ) {
+    if (!doc.exists || calcDateDiff(doc.data().updatedAt.toDate(), new Date()) >= 1) {
       // No Such document / needs to be updated --> scrape to get document
       semesters = await semScraper();
       if (Object.keys(semesters).length == 0) {
         error("SemScraper returned empty object");
         throw new Error("Error Scraping Semesters");
       }
-      toUpdate=true;
+      toUpdate = true;
       // return semesters then store it
     } else {
       semesters = doc.data().names;
@@ -62,14 +64,14 @@ exports.getsemesters = onRequest({cors: [/ntustars\.com$/], memory: "512MiB"}, a
   }
 });
 
-exports.getschedule = onRequest({cors: [/ntustars\.com$/], memory: "512MiB"}, async (req, res) => {
+exports.getschedule = onRequest({ cors: [/ntustars\.com$/], memory: "512MiB" }, async (req, res) => {
   try {
     const data = req.body;
     log(data);
     // validate data
     if (validateRequest(data)) {
       throw new HttpsError("invalid-argument", "The function must be called " +
-          "with two arguments \"Semester & Course\".");
+        "with two arguments \"Semester & Course\".");
     }
     const semester = data.semester.trim().toUpperCase();
     const courseCode = data.courseCode.trim().toUpperCase();
@@ -90,7 +92,7 @@ exports.getschedule = onRequest({cors: [/ntustars\.com$/], memory: "512MiB"}, as
       await docRef.set({
         ...result,
         updatedAt: FieldValue.serverTimestamp(),
-      }, {merge: true});
+      }, { merge: true });
       log("Uploaded");
     } else {
       res.json(doc.data());
@@ -102,7 +104,7 @@ exports.getschedule = onRequest({cors: [/ntustars\.com$/], memory: "512MiB"}, as
     res.status(500).end();
   }
 });
-exports.getcoursecontent = onRequest({cors: [/ntustars\.com$/], memory: "512MiB"}, async (req, res) => {
+exports.getcoursecontent = onRequest({ cors: [/ntustars\.com$/], memory: "512MiB" }, async (req, res) => {
   try {
     console.log("called");
     const data = req.body;
@@ -111,7 +113,7 @@ exports.getcoursecontent = onRequest({cors: [/ntustars\.com$/], memory: "512MiB"
     if (validateRequest(data)) {
       // eslint-disable-next-line no-undef
       throw new HttpsError("invalid-argument", "The function must be called " +
-          "with two arguments \"Semester & Course\".");
+        "with two arguments \"Semester & Course\".");
     }
     const semester = data.semester.trim().toUpperCase();
     const courseCode = data.courseCode.trim().toUpperCase();
@@ -141,7 +143,7 @@ exports.getcoursecontent = onRequest({cors: [/ntustars\.com$/], memory: "512MiB"
       await docRef.set({
         ...contentData,
         updatedAt: FieldValue.serverTimestamp(),
-      }, {merge: true});
+      }, { merge: true });
       log("Uploaded");
     } else {
       res.json(doc.data());
@@ -154,8 +156,23 @@ exports.getcoursecontent = onRequest({cors: [/ntustars\.com$/], memory: "512MiB"
   }
 });
 
+exports.getExamInfo = onRequest({ cors: [/ntustars\.com$/] }, async (req, res) => {
+  const data = req.body;
+  log(data);
+  // validate data
+  if (validateRequest(data)) {
+    // eslint-disable-next-line no-undef
+    throw new HttpsError("invalid-argument", "The function must be called " +
+      "with two arguments \"Semester & Course\".");
+  }
+  const semester = data.semester.trim().toUpperCase();
+  const courseCode = data.courseCode.trim().toUpperCase();
 
-exports.gettimeDict = onRequest({cors: [/ntustars\.com$/]}, async (req, res) => {
+  const result = await examScraper(2025, semester, courseCode);
+  return res.json(result);
+});
+
+exports.gettimeDict = onRequest({ cors: [/ntustars\.com$/] }, async (req, res) => {
   const timeDict = {
     "0800": 0,
     "0830": 1,
