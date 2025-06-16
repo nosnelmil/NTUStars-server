@@ -1,10 +1,10 @@
 const { log } = require("firebase-functions/logger");
 const puppeteer = require("puppeteer");
-const {formatScheduleData} = require("./scheduleFormatter");
+const { formatScheduleData } = require("./scheduleFormatter");
 
 const url = "https://wish.wis.ntu.edu.sg/webexe/owa/aus_schedule.main";
 
-module.exports.scheduleScraper = async function(semester, courseCode) {
+module.exports.scheduleScraper = async function (semester, courseCode) {
   try {
     // start puppeteer
     const browser = await puppeteer.launch({
@@ -12,7 +12,7 @@ module.exports.scheduleScraper = async function(semester, courseCode) {
       args: ["--no-sandbox"],
     });
     let page = await browser.newPage();
-    
+
     let pageList = await browser.pages();
     for (let i = 1; i < pageList.length; i++) {
       await pageList[i].close();
@@ -34,7 +34,7 @@ module.exports.scheduleScraper = async function(semester, courseCode) {
 
     const newTarget = await browser.waitForTarget((target) => target.opener() === page.target());
     const schedulePage = await newTarget.page();
-    
+
     let result = {};
     if (schedulePage) {
       // scrape course schedule data
@@ -47,7 +47,7 @@ module.exports.scheduleScraper = async function(semester, courseCode) {
       return null
     }
     browser.close();
-    
+
     result.schedule = formatScheduleData(result.schedule);
 
     return result;
@@ -58,7 +58,7 @@ module.exports.scheduleScraper = async function(semester, courseCode) {
 
 async function extractScheduleData(schedulePage) {
   // await schedulePage.waitForSelector('table:nth-of-type(2) tbody tr:nth-of-type(2) td:nth-of-type(7)')
-  
+
   const result = await schedulePage.evaluate(async () => {
     const courseCode = document.querySelector("table:nth-of-type(1) tbody tr:nth-of-type(1) td:nth-of-type(1) b font ").innerText;
     const courseName = document.querySelector("table:nth-of-type(1) tbody tr:nth-of-type(1) td:nth-of-type(2) b font ").innerText;

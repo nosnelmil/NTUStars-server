@@ -3,12 +3,12 @@ const { setGlobalOptions } = require("firebase-functions/v2");
 const { log, error } = require("firebase-functions/logger");
 const { initializeApp } = require("firebase-admin/app");
 const { getFirestore, FieldValue } = require("firebase-admin/firestore");
-const { scheduleScraper } = require("./ntuScheduleScraper");
-const { courseContentScraper } = require("./ntuCourseScraper");
-const { semScraper } = require("./ntuSemScraper");
+const { scheduleScraper } = require("./src/ntuScheduleScraper");
+const { courseContentScraper } = require("./src/ntuCourseScraper");
+const { semScraper } = require("./src/ntuSemScraper");
 const { calcDateDiff } = require("./helper/calcDateDiff");
 const { validateRequest } = require("./helper/validateRequest");
-const { examScraper } = require("./ntuExamScraper");
+const { examScraper } = require("./src/ntuExamScraper");
 
 // const cors = require("cors")({origin:[ "https://ntustars.com", "http://127.0.0.1:5173/"]});
 initializeApp();
@@ -170,6 +170,37 @@ exports.getExamInfo = onRequest({ cors: [/ntustars\.com$/] }, async (req, res) =
 
   const result = await examScraper(2025, semester, courseCode);
   return res.json(result);
+});
+
+exports.getSearchableCourses = onRequest({ cors: [/ntustars\.com$/] }, async (req, res) => {
+  try {
+    // validate data
+    const docRef = db.collection("courses").doc("searchable");
+    const doc = await docRef.get();
+    if (!doc.exists) {
+      res.status(404).end();
+      return;
+    }
+    res.json(doc.data());
+  } catch (e) {
+    error("/get-searchable-courses error", e);
+    res.status(500).end();
+  }
+});
+
+exports.getSupporters = onRequest({ cors: [/ntustars\.com$/] }, async (req, res) => {
+  try {
+    const docRef = db.collection("supporters").doc("supporters");
+    const doc = await docRef.get();
+    if (!doc.exists) {
+      res.status(404).end();
+      return;
+    }
+    res.json(doc.data());
+  } catch (e) {
+    error("/get-supporters error", e);
+    res.status(500).end();
+  }
 });
 
 exports.gettimeDict = onRequest({ cors: [/ntustars\.com$/] }, async (req, res) => {
